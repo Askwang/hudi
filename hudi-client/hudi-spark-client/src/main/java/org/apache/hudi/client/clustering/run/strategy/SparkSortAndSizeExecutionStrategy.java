@@ -92,6 +92,9 @@ public class SparkSortAndSizeExecutionStrategy<T>
         .withBulkInsertParallelism(numOutputGroups)
         .withProps(getWriteConfig().getProps()).build();
 
+    // ksmou-TODO: 这里设置为2g有问题，应该是PLAN_STRATEGY_TARGET_FILE_MAX_BYTES=1g
+    // getNumberOfOutputFileGroups会对group的2g进行切分
+    // 重置 hoodie.parquet.max.file.size 参数为 2g
     newConfig.setValue(HoodieStorageConfig.PARQUET_MAX_FILE_SIZE, String.valueOf(getWriteConfig().getClusteringMaxBytesInGroup()));
 
     return (HoodieData<WriteStatus>) SparkBulkInsertHelper.newInstance().bulkInsert(inputRecords, instantTime, getHoodieTable(),

@@ -252,6 +252,7 @@ public class HoodieHeartbeatClient implements AutoCloseable, Serializable {
   private void updateHeartbeat(String instantTime) throws HoodieHeartbeatException {
     try {
       Long newHeartbeatTime = System.currentTimeMillis();
+      // create方法的overwrite=true，心跳更新时会覆盖instant的hearbeat文件，即更新modification time
       OutputStream outputStream =
           this.fs.create(new Path(heartbeatFolderPath + Path.SEPARATOR + instantTime), true);
       outputStream.close();

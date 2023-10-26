@@ -68,6 +68,8 @@ public class DayBasedCompactionStrategy extends CompactionStrategy {
       List<HoodieCompactionOperation> operations, List<HoodieCompactionPlan> pendingCompactionPlans) {
     // Iterate through the operations and accept operations as long as we are within the configured target partitions
     // limit
+    // HUDI-6975
+    // orderAndFilter 方法可移除
     return operations.stream()
         .collect(Collectors.groupingBy(HoodieCompactionOperation::getPartitionPath)).entrySet().stream()
         .sorted(Map.Entry.comparingByKey(comparator)).limit(writeConfig.getTargetPartitionsPerDayBasedCompaction())

@@ -101,6 +101,7 @@ class RunCompactionProcedure extends BaseProcedure with ProcedureBuilder with Sp
 
     var client: SparkRDDWriteClient[_] = null
     try {
+      // 设置 withAutoCommit(false)
       client = HoodieCLIUtils.createHoodieWriteClient(sparkSession, basePath, confs,
         tableName.asInstanceOf[Option[String]])
 
@@ -118,6 +119,9 @@ class RunCompactionProcedure extends BaseProcedure with ProcedureBuilder with Sp
         filteredPendingCompactionInstants.foreach { compactionInstant =>
           val writeResponse = client.compact(compactionInstant)
           handleResponse(writeResponse.getCommitMetadata.get())
+          // 这里 completeCompaction 会调用两次，一次在上面compact内部，一次是下面的commitCompaction
+          // 前面 SparkRDDWriteClient 设置了 withAutoCommit(false), commit结束时不会触发completeCompaction
+          // 因此，completeCompletion 只会调用一次
           client.commitCompaction(compactionInstant, writeResponse.getCommitMetadata.get(), HOption.empty())
         }
         logInfo(s"Finish Run compaction at instants: [${filteredPendingCompactionInstants.mkString(",")}]," +
