@@ -176,8 +176,11 @@ object HoodieSparkSqlWriter {
     validateKeyGeneratorConfig(originKeyGeneratorClassName, tableConfig);
     validateTableConfig(sqlContext.sparkSession, optParams, tableConfig, mode == SaveMode.Overwrite);
 
+    // 使用Spark streaming sink时这两个参数才设置为true，默认是走 inline compact 逻辑
+    // Spark streaming sink配置hoodie.datasource.write.streaming.disable.compaction参数控制是否开启compact
     asyncCompactionTriggerFnDefined = streamingWritesParamsOpt.map(_.asyncCompactionTriggerFn.isDefined).orElse(Some(false)).get
     asyncClusteringTriggerFnDefined = streamingWritesParamsOpt.map(_.asyncClusteringTriggerFn.isDefined).orElse(Some(false)).get
+    // 更新params参数，同时会添加default参数
     // re-use table configs and inject defaults.
     val (parameters, hoodieConfig) = mergeParamsAndGetHoodieConfig(optParams, tableConfig, mode, streamingWritesParamsOpt.isDefined)
     val databaseName = hoodieConfig.getStringOrDefault(HoodieTableConfig.DATABASE_NAME, "")
@@ -427,6 +430,7 @@ object HoodieSparkSqlWriter {
                 hoodieRecords
               }
             client.startCommitWithTime(instantTime, commitActionType)
+            // 执行write逻辑
             val writeResult = DataSourceUtils.doWriteOperation(client, dedupedHoodieRecords, instantTime, operation,
               preppedSparkSqlWrites || preppedWriteOperation)
             (writeResult, client)
@@ -434,6 +438,7 @@ object HoodieSparkSqlWriter {
 
       // Check for errors and commit the write.
       try {
+        // commit阶段，会触发table service相关服务
         val (writeSuccessful, compactionInstant, clusteringInstant) =
           commitAndPerformPostOperations(sqlContext.sparkSession, df.schema,
             writeResult, parameters, writeClient, tableConfig, jsc,
@@ -1161,6 +1166,7 @@ object HoodieSparkSqlWriter {
           translatedOptsWithMappedTableConfig +=  (key -> value)
         }
     }
+    // 添加default参数
     val mergedParams = mutable.Map.empty ++ HoodieWriterUtils.parametersWithWriteDefaults(translatedOptsWithMappedTableConfig.toMap)
     if (!mergedParams.contains(HoodieTableConfig.KEY_GENERATOR_CLASS_NAME.key)
       && mergedParams.contains(KEYGENERATOR_CLASS_NAME.key)) {
@@ -1175,6 +1181,7 @@ object HoodieSparkSqlWriter {
       // enable merge allow duplicates when operation type is insert
       mergedParams.put(HoodieWriteConfig.MERGE_ALLOW_DUPLICATE_ON_INSERTS_ENABLE.key(), "true")
     }
+    // 批处理时设置hoodie.compact.inline=true，如果设置了hoodie.datasource.compaction.async.enable参数，则不开启inline compact
     // enable inline compaction for batch writes if applicable
     if (!isStreamingWrite
       && mergedParams.getOrElse(DataSourceWriteOptions.TABLE_TYPE.key(), COPY_ON_WRITE.name()) == MERGE_ON_READ.name()

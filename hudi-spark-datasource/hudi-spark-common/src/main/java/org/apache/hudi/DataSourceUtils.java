@@ -174,6 +174,7 @@ public class DataSourceUtils {
                                                      String tblName, Map<String, String> parameters) {
     boolean asyncCompact = Boolean.parseBoolean(parameters.get(DataSourceWriteOptions.ASYNC_COMPACT_ENABLE().key()));
     boolean inlineCompact = false;
+    // HoodieSparkSqlWriter#mergeParamsAndGetHoodieConfig 对 inline compact 进行了处理，这里又进行处理，感觉有点冗余
     if (parameters.containsKey(HoodieCompactionConfig.INLINE_COMPACT.key())) {
       // if inline is set, fetch the value from it.
       inlineCompact = Boolean.parseBoolean(parameters.get(HoodieCompactionConfig.INLINE_COMPACT.key()));
